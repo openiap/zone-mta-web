@@ -1,0 +1,58 @@
+{
+    "name": "zone-mta-web",
+    "version": "0.1.47",
+    "private": true,
+    "publishConfig": {
+        "access": "public"
+    },
+    "author": "OpenIAP ApS / Allan Zimmermann",
+    "license": "MPL-2.0",
+    "homepage": "https://github.com/openiap",
+    "funding": "https://github.com/sponsors/skadefro",
+    "scripts": {
+        "serve": "vue-cli-service serve",
+        "build": "vue-cli-service build",
+        "compose": "npm run build && docker build -t cloudhack/vue3-template . && docker push cloudhack/vue3-template",
+        "generator": "npx vue-pwa-asset-generator -a logo.png",
+        "serveprod": "set NODE_ENV=production && vue-cli-service serve",
+        "updatejsapi": "npm uninstall @openiap/jsapi && npm i openiap/jsapi",
+        "updatejsapidev": "npm uninstall @openiap/jsapi && npm i ../jsapi"
+    },
+    "dependencies": {
+        "express": "^4.19.2",
+        "nodemailer": "^6.9.13"
+    },
+    "devDependencies": {
+        "@fortawesome/fontawesome-svg-core": "^6.2.0",
+        "@fortawesome/free-brands-svg-icons": "^6.2.0",
+        "@fortawesome/free-solid-svg-icons": "^6.2.0",
+        "@fortawesome/vue-fontawesome": "^3.0.1",
+        "@openiap/jsapi": "github:openiap/jsapi",
+        "@skadefro/vue-shortkey": "^3.1.8",
+        "@vue-flow/additional-components": "^1.1.0",
+        "@vue-flow/core": "^1.1.4",
+        "@vue/cli-plugin-babel": "~5.0.0",
+        "@vue/cli-plugin-router": "~5.0.0",
+        "@vue/cli-plugin-typescript": "~5.0.0",
+        "@vue/cli-plugin-vuex": "~5.0.0",
+        "@vue/cli-service": "~5.0.0",
+        "chota": "^0.8.0",
+        "core-js": "^3.8.3",
+        "register-service-worker": "^1.7.2",
+        "typescript": "~4.5.5",
+        "vue": "^3.2.13",
+        "vue-debounce": "^4.0.0",
+        "vue-oidc-client": "^1.0.0-alpha.4",
+        "vue-router": "^4.0.3",
+        "vue-shortkey": "file:../vue-shortkey",
+        "vue3-easy-data-table": "^1.5.0",
+        "vuex": "^4.0.0"
+    },
+    "openiap": {
+        "language": "nodejs",
+        "typescript": false,
+        "daemon": true,
+        "chromium": false
+    },
+    "main": "server.js"
+}

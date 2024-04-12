@@ -1,0 +1,10 @@
+{
+    "VUE_APP_CONFIG_URL": "https://demo.openiap.io/config",
+    "VUE_APP_AUTHORITY3": "https://auth.openiap.io/auth/realms/openiap",
+    "VUE_APP_AUTHORITY4": "https://auth.openiap.io/auth/realms/master",
+    "VUE_APP_CLIENT_ID2": "webapp",
+    "VUE_APP_AUTHORITY": "https://demo.openiap.io/oidc",
+    "VUE_APP_CLIENT_ID": "agent",
+    "VUE_APP_RESPONSE_TYPE": "code",
+    "VUE_APP_PROMPT": "login"
+}
