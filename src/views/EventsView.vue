@@ -44,6 +44,9 @@
       <template #item-reason="item">
         <span :title="item.reason">{{ item.reason?.substring(0, 10) }}</span>
       </template>
+      <template #item-error="item">
+        <span :title="item.error?.message">{{ item.error?.message?.substring(0, 10) }}</span>
+      </template>
       
       <template #item-name="item">
         <router-link :to="{ name: 'EntityViewWithId', params: { collectionname, id: item._id }}">{{item.name}}

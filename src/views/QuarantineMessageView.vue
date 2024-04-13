@@ -20,6 +20,7 @@
       <!-- <button v-if="this.item != null" type="button" class="button primary col-3" v-on:click="ReSubmit">Resubmit (NEW)</button> -->
       <button @click="Delete" class="button secondary">Delete</button>
       <button v-if="this.item != null" type="button" class="button primary col-3" v-on:click="Report">Report</button>
+      <button v-if="this.item != null" type="button" class="button secondary col-3" v-on:click="Resubmit">Resubmit</button>
     </div>
   </div>
 
@@ -214,6 +215,22 @@ export default {
           headers = headers.lines
         }
       }
+      try {
+        if(headers != null) {
+
+          if(this.meta != null) {
+            const domain = this.meta.from?.split("@")[1];
+            const addheader = "Received: from " + domain + " (" + this.meta.originhost + " [" + this.meta.origin + "])\n" +
+              "\tby cloud.openiap.io ([35.205.4.121]) with SMTP id " + this.meta.id + ";\n\t" + this.meta.date + "\n";
+            // console.log("domain", domain)
+            // console.log("meta", JSON.parse(JSON.stringify(this.meta)))
+            // console.log(addheader)
+            headers.unshift({ line: addheader });
+          }
+        }
+      } catch (error) {
+        console.error(error);        
+      }
       return headers?.map(x => x.line).join('\n') || 'No headers available';
     },
     htmlbodyContent() {
@@ -221,65 +238,21 @@ export default {
         const decoder = new TextDecoder('utf-8');
         const text = decoder.decode(this.filecontent);
         const email = new EmlReader(this.filecontent);
-        console.log(email.getMessageText());
-        console.log(email.getMessageHtml());
         return email.getMessageHtml()
-        // console.log(email.getDate());
-        // console.log(email.getSubject());
-        // console.log(email.getFrom());
-        // console.log(email.getCc());
-        // console.log(email.getTo());
-        // console.log(email.getReplyTo());
-        // console.log(email.getAttachments());
-
-
-
-        
-        // // Pattern to find the HTML part of the email
-        // const pattern = /Content-Type: text\/html; charset=UTF-8\s*Content-Transfer-Encoding: quoted-printable\s*([\s\S]*?)--/i;
-
-        // // Attempt to find the HTML content
-        // const match = text.match(pattern);
-
-        // // If found, return the HTML content, else return a default message
-        // if (match && match[1]) {
-        //   // const body = this.decodeQuotedPrintable(match[1]).trim();
-        //   const body = match[1].trim();
-        //   // The actual HTML content is in the first capturing group
-        //   // console.log(body.length, body)
-        //   // document.getElementById("htmlbodydiv").innerHTML = body;
-        //   // return body
-
-        //   // // Create the iframe element
-        //   // var iframe = document.createElement('iframe');
-
-        //   // // Optional: Set some basic styles to ensure visibility and appropriate sizing
-        //   // iframe.style.width = '100%';
-        //   // iframe.style.height = '400px'; // You may want to adjust this
-        //   // iframe.style.border = 'none'; // Hides the iframe border
-
-        //   // // iframe.srcdoc = body;
-
-        //   // // Append the iframe to the document or a specific element
-        //   // document.getElementById("htmlbodydiv").appendChild(iframe);
-
-        //   // // // Write the HTML content into the iframe
-        //   // // // Note: This method might vary depending on how strictly you want to sandbox the content
-        //   // var doc = iframe.contentWindow.document;
-        //   // doc.open();
-        //   // doc.write(body);
-        //   // doc.close();
-        //   // return "";
-        // } else {
-        //   return 'No HTML content found';
-        // }
       }
       return 'No body available';
     },
     bodyContent() {
       if(this.filecontent.length > 0) {
         const decoder = new TextDecoder('utf-8');
-        const text = decoder.decode(this.filecontent);
+        let addheader = "";
+        if(this.meta != null) {
+          const domain = this.meta.from?.split("@")[1];
+          addheader = "Received: from " + domain + " (" + this.meta.originhost + " [" + this.meta.origin + "])\n" +
+            "\tby cloud.openiap.io ([35.205.4.121]) with SMTP id " + this.meta.id + ";\n\t" + this.meta.date + "\n";
+          console.log(addheader)
+        }
+        const text = addheader + decoder.decode(this.filecontent);
         return text;
       }
       return 'No body available';
@@ -364,11 +337,18 @@ decodedContent = decodedContent.replace(/<!--[\s\S]*?-->/g, '');
       try {
         this.reporting = 'downloading message'
         await this.GetBody();
+        let addheader = "";
+        if(this.meta != null) {
+          const domain = this.meta.from?.split("@")[1];
+          addheader = "Received: from " + domain + " (" + this.meta.originhost + " [" + this.meta.origin + "])\n" +
+            "\tby cloud.openiap.io ([35.205.4.121]) with SMTP id " + this.meta.id + ";\n\t" + this.meta.date + "\n";
+          console.log(addheader)
+        }
         const decoder = new TextDecoder('utf-8');
-        const data = decoder.decode(this.filecontent);
-        this.reporting = 'Posting message to /api/email'
-        // Post data to /api/email
-        const response = await fetch('/api/email', {
+        console.log("addheader", addheader)
+        const data = addheader + decoder.decode(this.filecontent);
+        this.reporting = 'Posting message to /api/report'
+        const response = await fetch('/api/report', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -381,7 +361,31 @@ decodedContent = decodedContent.replace(/<!--[\s\S]*?-->/g, '');
         });
         var body = await response.text();
         this.reporting = 'Message reported ' + body
-        console.log(body);
+      } catch (error) {
+        console.error(error);
+        this.reporting = 'Error: ' + error.message;
+      }
+    },
+    async Resubmit() {
+      try {
+        this.reporting = 'downloading message'
+        await this.GetBody();
+        const decoder = new TextDecoder('utf-8');
+        const data = decoder.decode(this.filecontent);
+        this.reporting = 'Posting message to /api/resubmit'
+        const response = await fetch('/api/resubmit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: this.id,
+            seq: this.seq,
+            email: data
+          })
+        });
+        var body = await response.text();
+        this.reporting = 'Message resubmit ' + body
       } catch (error) {
         console.error(error);
         this.reporting = 'Error: ' + error.message;
@@ -405,26 +409,6 @@ decodedContent = decodedContent.replace(/<!--[\s\S]*?-->/g, '');
         this.errormessage = error.message;
       }
     },
-    // async ReSubmit() {
-    //   await this.GetBody();
-    //   if (this.filecontent.length == 0) {
-    //     console.log("No body available")
-    //     return;
-    //   }
-    //   const SMTPclient = require("nodemailer").createTransport({
-    //     host: "cloud.openiap.io",
-    //     port: 25
-    //   });
-    //   const decoder = new TextDecoder('utf-8');
-    //   const text = decoder.decode(this.filecontent);
-    //   SMTPclient.sendMail({ raw: text }, (err, info) => {
-    //     if (err) {
-    //       console.log(err);
-    //     } else {
-    //       console.log(info);
-    //     }
-    //   });
-    // },
     async Delete() {
       try {
         if(this.seq == null || this.seq == "") {
@@ -471,10 +455,10 @@ decodedContent = decodedContent.replace(/<!--[\s\S]*?-->/g, '');
       if (this.Signedin == true && !Util.IsNullEmpty(this.id)) {
         if (this.seq == null || this.seq == "") {
           var results = await this.Client.Query({ collectionname: this.collectionname, query: { id: this.id }, top: 1 });
-          console.log("no seq", results)
+          if(results.length > 0) console.log("no seq", results[0])
         } else {
           var results = await this.Client.Query({ collectionname: this.collectionname, query: { id: this.id, seq: this.seq }, top: 1 });
-          console.log("with seq", results)
+          if(results.length > 0) console.log("with seq", results[0])
         }
         
         if (results.length > 0) {
@@ -487,12 +471,13 @@ decodedContent = decodedContent.replace(/<!--[\s\S]*?-->/g, '');
           // return;
         }
         var results = await this.Client.Query({ collectionname: "mail.files", query: { filename: "message " + this.id }, top: 1 });
-          if (results.length == 0) {
-            results = await this.Client.Query({ collectionname: "archive.files", query: { filename: "message " + this.id }, top: 1 });
-          }
-          if (results.length > 0) {
-            this.meta = results[0].metadata.data;
-          }
+        if (results.length == 0) {
+          results = await this.Client.Query({ collectionname: "archive.files", query: { filename: "message " + this.id }, top: 1 });
+        }
+        if (results.length > 0) {
+          this.meta = results[0].metadata.data;
+          console.log("meta", JSON.parse(JSON.stringify(this.meta)) )
+        }
 
         if ((this.seq == null || this.seq == "")) {
           this.messages = await this.Client.Query({ collectionname: this.collectionname, query: { id: this.id } });

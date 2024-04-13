@@ -19,6 +19,7 @@
           <button @click="Delete" class="button secondary" v-if="itemsSelected.length > 0"
             v-shortkey.propagte="['del']" @shortkey="Delete">Delete</button>
           <button v-if="itemsSelected.length > 0" type="button" class="button primary" v-on:click="Report">Report</button>
+          <button v-if="itemsSelected.length > 0" type="button" class="button primary" v-on:click="Resubmit">Resubmit</button>
         </footer>
       </div>
       </div>
@@ -176,7 +177,7 @@ export default {
     },
     async downloadFile(item) {
       try {
-        console.log("downloading file", item)
+        console.log("downloading file", item._id)
         var filecontent = await this.Client.DownloadFile({ id: item._id })
         var blob = new Blob([filecontent], { type: item.contentType });
         var link = document.createElement('a');
@@ -252,8 +253,25 @@ export default {
           var item = this.itemsSelected[i];
           let filecontent = await this.GetBody(item.id);
           if(filecontent != null && filecontent.length > 0) {
+
+            var results = await this.Client.Query({ collectionname: "mail.files", query: { filename: "message " + item.id }, top: 1 });
+            if (results.length == 0) {
+              results = await this.Client.Query({ collectionname: "archive.files", query: { filename: "message " + item.id }, top: 1 });
+            }
+            let meta = null;
+            if (results.length > 0) {
+              meta = results[0].metadata.data;
+              console.log("meta", JSON.parse(JSON.stringify(meta)))
+            }
+            let addheader = "";
+            if (this.meta != null) {
+              const domain = this.meta.from?.split("@")[1];
+              addheader = "Received: from " + domain + " (" + this.meta.originhost + " [" + this.meta.origin + "])\n" +
+                "\tby cloud.openiap.io ([35.205.4.121]) with SMTP id " + this.meta.id + ";\n\t" + this.meta.date + "\n";
+              console.log(addheader)
+            }
             const decoder = new TextDecoder('utf-8');
-            const data = decoder.decode(filecontent);
+            const data = addheader + decoder.decode(filecontent);
             emails.push(data);
           } else {
             console.log("No message/data found for", item.id)
@@ -263,9 +281,8 @@ export default {
           this.reporting = 'No messages to report'
           return;
         }
-        this.reporting = 'Posting message to /api/email'
-        // Post data to /api/email
-        const response = await fetch('/api/emails', {
+        this.reporting = 'Posting message to /api/report'
+        const response = await fetch('/api/report', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -278,7 +295,44 @@ export default {
         });
         var body = await response.text();
         this.reporting = 'Message reported ' + body
-        console.log(body);
+      } catch (error) {
+        console.error(error);
+        this.reporting = 'Error: ' + error.message;
+      }
+    },
+    async Resubmit() {
+      try {
+        this.reporting = 'downloading ' + this.itemsSelected.length + 'messages'
+        var emails = [];
+        for(let i = 0; i < this.itemsSelected.length; i++) {
+          var item = this.itemsSelected[i];
+          let filecontent = await this.GetBody(item.id);
+          if(filecontent != null && filecontent.length > 0) {
+            const decoder = new TextDecoder('utf-8');
+            const data = decoder.decode(filecontent);
+            emails.push(data);
+          } else {
+            console.log("No message/data found for", item.id)
+          }
+        }
+        if(emails.length == 0) {
+          this.reporting = 'No messages to report'
+          return;
+        }
+        this.reporting = 'Posting message to /api/resubmit'
+        const response = await fetch('/api/resubmit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: this.id,
+            seq: this.seq,
+            emails
+          })
+        });
+        var body = await response.text();
+        this.reporting = 'Message resubmited ' + body
       } catch (error) {
         console.error(error);
         this.reporting = 'Error: ' + error.message;
@@ -459,7 +513,6 @@ export default {
             }
             this.items = arr.filter((v, i, a) => a.findIndex(v2 => (v2._id === v._id)) === i)
           } else {
-            console.log(orderby)
             this.items = await this.Client.Query({
               query, collectionname: this.collectionname, top: this.serverOptions.rowsPerPage,
               skip: (this.serverOptions.page - 1) * this.serverOptions.rowsPerPage,
